@@ -269,6 +269,17 @@ function process.handle(msg, ao)
     require('.eval')(ao)
   )
   Handlers.append("_default", function () return true end, require('.default')(insertInbox))
+
+  Handlers.add("_init",
+    function (msg)
+      return msg.Action == "Init" and Owner == msg.From
+    end,
+    function ()
+      print("initializing...")
+      require('.init')
+      print(Test_var)
+    end
+  )
   -- call evaluate from handlers passing env
   msg.reply =
     function(replyMsg)
@@ -351,5 +362,7 @@ function process.handle(msg, ao)
     return response
   end
 end
+
+
 
 return process

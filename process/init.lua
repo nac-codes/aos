@@ -15,3 +15,6 @@ end
 -- loading modules
 Org = require('.org')
 print("Org loaded")
+
+Voting = require('.voting')
+print("Voting loaded")

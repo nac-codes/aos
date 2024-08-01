@@ -1,4 +1,6 @@
 
+-- ------------ Utility functions ----------------
+
 -- function that takes in an arbitrary number of arguments and returns a string representation of them
 function Print_all(...)
     local args = {...}
@@ -12,7 +14,7 @@ function Print_all(...)
     print(str)
 end
 
--- loading modules
+-- ------------ Loading Modules ----------------
 Org = require('.org')
 print("Org loaded")
 

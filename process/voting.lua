@@ -1,7 +1,6 @@
 local bint = require('.bint')(256)
 local ao = require('ao')
 local json = require('json')
-local Handlers = require('handlers')
 
 -- Initialize state
 if not AddRequests then AddRequests = {} end -- Ledger for add requests
@@ -12,9 +11,15 @@ local function getVotingThreshold()
     return bint.__mul(totalSupply, bint(51)) / bint(100) -- 51% of total supply
 end
 
+-- Helper function to print information in JSON format
+local function printJson(action, data)
+    print(json.encode({action = action, data = data}))
+end
+
 -- Handler for requesting to add a new member
 Handlers.add('requestAddMember', Handlers.utils.hasMatchingTag('Action', 'RequestAddMember'), function(msg)
     if not IsMember(msg.From) then
+        printJson('Error', 'Unauthorized: Only members can request to add new members')
         ao.send({
             Target = msg.From,
             Action = 'Error',
@@ -25,6 +30,7 @@ Handlers.add('requestAddMember', Handlers.utils.hasMatchingTag('Action', 'Reques
 
     local newMember = msg.Tags.Member_To_Add
     if not newMember then
+        printJson('Error', 'Member_To_Add tag is required')
         ao.send({
             Target = msg.From,
             Action = 'Error',
@@ -34,6 +40,7 @@ Handlers.add('requestAddMember', Handlers.utils.hasMatchingTag('Action', 'Reques
     end
 
     if IsMember(newMember) then
+        printJson('Error', 'Address is already a member')
         ao.send({
             Target = msg.From,
             Action = 'Error',
@@ -44,6 +51,7 @@ Handlers.add('requestAddMember', Handlers.utils.hasMatchingTag('Action', 'Reques
 
     local requesterBalance = bint(Balances[msg.From] or "0")
     if bint.__lt(requesterBalance, bint(1 * 1e12)) then
+        printJson('Error', 'Insufficient balance to request adding a new member')
         ao.send({
             Target = msg.From,
             Action = 'Error',
@@ -56,7 +64,7 @@ Handlers.add('requestAddMember', Handlers.utils.hasMatchingTag('Action', 'Reques
     for id, request in pairs(AddRequests) do
         if request.requester == msg.From then
             AddRequests[id] = nil
-
+            printJson('Notification', {message = 'Previous request removed', requestId = id})
             ao.send({
                 Target = msg.From,
                 Action = 'Notification',
@@ -89,6 +97,11 @@ Handlers.add('requestAddMember', Handlers.utils.hasMatchingTag('Action', 'Reques
         end
     end
 
+    printJson('RequestSubmitted', {
+        message = "Request to add new member submitted successfully",
+        requestId = msg.Id,
+        request = AddRequests[msg.Id]
+    })
     ao.send({
         Target = msg.From,
         Action = 'RequestSubmitted',
@@ -104,6 +117,7 @@ Handlers.add('voteOnRequest', Handlers.utils.hasMatchingTag('Action', 'VoteOnReq
     local vote = msg.Tags.Vote
 
     if not requestId or not vote then
+        printJson('Error', 'RequestId and Vote tags are required')
         ao.send({
             Target = msg.From,
             Action = 'Error',
@@ -114,6 +128,7 @@ Handlers.add('voteOnRequest', Handlers.utils.hasMatchingTag('Action', 'VoteOnReq
 
     local request = AddRequests[requestId]
     if not request then
+        printJson('Error', 'Invalid request ID')
         ao.send({
             Target = msg.From,
             Action = 'Error',
@@ -123,6 +138,7 @@ Handlers.add('voteOnRequest', Handlers.utils.hasMatchingTag('Action', 'VoteOnReq
     end
 
     if request.voters[msg.From] then
+        printJson('Error', 'You have already voted on this request')
         ao.send({
             Target = msg.From,
             Action = 'Error',
@@ -133,6 +149,7 @@ Handlers.add('voteOnRequest', Handlers.utils.hasMatchingTag('Action', 'VoteOnReq
 
     local voterBalance = bint(Balances[msg.From] or "0")
     if bint.__eq(voterBalance, bint(0)) then
+        printJson('Error', 'You must have a positive balance to vote')
         ao.send({
             Target = msg.From,
             Action = 'Error',
@@ -152,6 +169,7 @@ Handlers.add('voteOnRequest', Handlers.utils.hasMatchingTag('Action', 'VoteOnReq
         -- check if balance of requester is greater than 1
         local requesterBalance = bint(Balances[request.requester] or "0")
         if bint.__lt(requesterBalance, bint(1 * 1e12)) then
+            printJson('Error', 'Votes threshold passed, but the requester no longer has a satisfactory balance')
             ao.send({
                 Target = msg.From,
                 Action = 'Error',
@@ -163,6 +181,11 @@ Handlers.add('voteOnRequest', Handlers.utils.hasMatchingTag('Action', 'VoteOnReq
 
         Balances[request.requester] = tostring(bint.__sub(bint(Balances[request.requester]), bint(1 * 1e12))) -- Deduct 1 token from requester
 
+        printJson('MemberAdded', {
+            message = 'New member added successfully',
+            newMember = request.newMember,
+            requester = request.requester
+        })
         ao.send({
             Target = request.requester,
             Action = 'MemberAdded',
@@ -173,6 +196,12 @@ Handlers.add('voteOnRequest', Handlers.utils.hasMatchingTag('Action', 'VoteOnReq
         -- Remove the request
         AddRequests[requestId] = nil
     else
+        printJson('VoteRecorded', {
+            message = 'Your vote has been recorded',
+            requestId = requestId,
+            currentVotes = tostring(request.votes),
+            threshold = tostring(request.threshold)
+        })
         ao.send({
             Target = msg.From,
             Action = 'VoteRecorded',
@@ -185,6 +214,7 @@ end)
 -- Handler for getting current add requests
 Handlers.add('getAddRequests', Handlers.utils.hasMatchingTag('Action', 'GetAddRequests'), function(msg)
     if not IsMember(msg.From) then
+        printJson('Error', 'Unauthorized: Only members can view add requests')
         ao.send({
             Target = msg.From,
             Action = 'Error',
@@ -193,19 +223,10 @@ Handlers.add('getAddRequests', Handlers.utils.hasMatchingTag('Action', 'GetAddRe
         return
     end
 
-    local requestsInfo = {}
-    for id, request in pairs(AddRequests) do
-        requestsInfo[id] = {
-            newMember = request.newMember,
-            requester = request.requester,
-            votes = tostring(request.votes),
-            threshold = tostring(request.threshold)
-        }
-    end
-
+    printJson('AddRequestsList', AddRequests)
     ao.send({
         Target = msg.From,
         Action = 'AddRequestsList',
-        Data = json.encode(requestsInfo)
+        Data = json.encode(AddRequests)
     })
 end)

@@ -195,20 +195,21 @@ Handlers.add('voteOnRequest', Handlers.utils.hasMatchingTag('Action', 'VoteOnReq
 
         -- Remove the request
         AddRequests[requestId] = nil
-    else
-        printJson('VoteRecorded', {
-            message = 'Your vote has been recorded',
-            requestId = requestId,
-            currentVotes = tostring(request.votes),
-            threshold = tostring(request.threshold)
-        })
-        ao.send({
-            Target = msg.From,
-            Action = 'VoteRecorded',
-            RequestId = requestId,
-            Data = "Your vote has been recorded"
-        })
     end
+
+    printJson('VoteRecorded', {
+        message = 'Your vote has been recorded',
+        requestId = requestId,
+        currentVotes = tostring(request.votes),
+        threshold = tostring(request.threshold)
+    })
+    ao.send({
+        Target = msg.From,
+        Action = 'VoteRecorded',
+        RequestId = requestId,
+        Data = "Your vote has been recorded"
+    })
+    
 end)
 
 -- Handler for getting current add requests

@@ -16,6 +16,21 @@ function parseOutput(output) {
     }
 }
 
+
+function parseMultipleJSON(output) {
+    const outputString = String(output);
+    const jsonStrings = outputString.split('\n').filter(str => str.trim() !== '');
+    
+    return jsonStrings.map(jsonString => {
+        try {
+            return JSON.parse(jsonString);
+        } catch (error) {
+            console.error("Error parsing JSON string:", jsonString);
+            throw error;
+        }
+    });
+}
+
 // Helper function to initialize the process and perform an action
 async function initAndPerformAction(initData, actionMsg) {
     console.log("\n--- Initializing new test ---")
@@ -159,6 +174,69 @@ test('DAO Token Voting Mechanism', async (t) => {
         const result3 = await handle(result2.Memory, actionMsg, env)
         console.log("Result3: ", result3.Output)
         assert.equal(parseOutput(result3.Output).action,"AddRequestsList")
+
+        // Vote on request
+        const voteMsg = {
+            From: 'AOS',
+            Target: 'AOS',
+            Owner: 'AOS',
+            Tags: [
+                { name: 'Action', value: 'VoteOnRequest' },
+                { name: 'RequestId', value: 'request123' },
+                { name: 'Vote', value: 'yes' }
+            ],
+            Data: 'hello'
+        }
+
+        const result4 = await handle(result3.Memory, voteMsg, env)
+        console.log("Result4: ", result4.Output)
+        const parsedObjects = parseMultipleJSON(result4.Output.data);
+        parsedObjects.forEach(parsedObject => {
+            console.log("Parsed Object:", parsedObject);
+            if (parsedObject.action === "VoteRecorded") {
+                assert.equal(parsedObject.action, "VoteRecorded");
+            }
+            else if (parsedObject.action == "MemberAdded") {
+                assert.equal(parsedObject.action, "MemberAdded");
+            }
+            else {
+                assert.fail("Unexpected action");
+            }
+        });
+
+        // check member list to see if NEW_MEMBER was added
+        const checkMsg = {
+            From: 'AOS',
+            Target: 'AOS',
+            Owner: 'AOS',
+            Tags: [
+                { name: 'Action', value: 'GetBalances' }
+            ],
+            Data: 'hello'
+        }
+
+        const result5 = await handle(result4.Memory, checkMsg, env)
+        console.log("Result5: ", result5.Output)
+        const parsedResult5 = parseOutput(result5.Output)
+        console.log("Parsed Result5: ", parsedResult5)
+        // assert.equal(parsedResult5.action, "Balances");
+        assert.equal(parsedResult5.NEW_MEMBER, "2000000000000");
+
+        // check the balance of AOS make sure that the balance has been deducted
+        const checkBalanceMsg = {
+            From: 'AOS',
+            Target: 'AOS',
+            Owner: 'AOS',
+            Tags: [
+                { name: 'Action', value: 'Balance' }
+            ],
+            Data: 'hello'
+        }
+
+        const result6 = await handle(result5.Memory, checkBalanceMsg, env)
+        console.log("Result6: ", result6.Output)
+        const parsedResult6 = result6.Output.data;      
+        assert.equal(parsedResult6, "Your balance is 9000000000000 DAO");
     })
 
     // await t.test('Vote on Request (Non-Member)', async () => {

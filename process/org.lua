@@ -2,12 +2,24 @@ local bint = require('.bint')(256)
 local ao = require('ao')
 local json = require('json')
 
--- Initialize state
-if not Balances then Balances = { [ao.id] = tostring(bint(10 * 1e12)) } end -- 10 tokens for the process
 
-if Name ~= 'DAO Token' then Name = 'DAO Token' end
-if Ticker ~= 'DAO' then Ticker = 'DAO' end
-if Denomination ~= 12 then Denomination = 12 end
+-- Initialize state
+Org = {}
+
+function Org.initialize(name, ticker, uniqueID)
+    -- Initialize state
+    if not Balances then Balances = { [ao.id] = tostring(bint(10 * 1e12)) } end -- 10 tokens for the process
+
+    Name = name or 'DAO Token'
+    Ticker = ticker or 'DAO'
+    UniqueID = uniqueID or 'DEFAULT_ID'
+    if Denomination ~= 12 then Denomination = 12 end
+
+    print("Organization initialized with:")
+    print("Name: " .. Name)
+    print("Ticker: " .. Ticker)
+    print("UniqueID: " .. UniqueID)
+end
 
 -- Helper function to check if an address is a member
 function IsMember(address)
@@ -32,7 +44,7 @@ Handlers.add('info', Handlers.utils.hasMatchingTag('Action', 'Info'), function(m
         Denomination = tostring(Denomination)
     })
     -- print out info
-    Print_all(msg.From, Name, Ticker, tostring(Denomination))
+    print("Name: " .. Name .. " Ticker: " .. Ticker)
 end)
 
 -- Handler for checking balance
@@ -44,7 +56,7 @@ Handlers.add('balance', Handlers.utils.hasMatchingTag('Action', 'Balance'), func
         Balance = balance,
         Data = "Your balance is " .. balance .. " " .. Ticker
     })
-    Print_all("Your balance is " .. balance .. " " .. Ticker)
+    print("Your balance is " .. balance .. " " .. Ticker)
 end)
 
 -- Handler for getting list of Balances
@@ -64,5 +76,8 @@ Handlers.add('getBalances', Handlers.utils.hasMatchingTag('Action', 'GetBalances
         Action = 'Balances',
         Data = json.encode(Balances)
     })
-    Print_all(json.encode(Balances))
+    print(json.encode(Balances))
 end)
+
+
+return Org

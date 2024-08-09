@@ -1,18 +1,4 @@
-
--- ------------ Utility functions ----------------
-
--- function that takes in an arbitrary number of arguments and returns a string representation of them
-function Print_all(...)
-    local args = {...}
-    local str = ""
-    for i, v in ipairs(args) do
-        str = str .. tostring(v)
-        if i < #args then
-            str = str .. " "
-        end
-    end
-    print(str)
-end
+-- init.lua
 
 -- ------------ Loading Modules ----------------
 Org = require('.org')
@@ -20,3 +6,24 @@ print("Org loaded")
 
 Voting = require('.voting')
 print("Voting loaded")
+
+-- ------------ Initialization ----------------
+function Init(msg)
+    Org = require('.org')
+    print("Org loaded")
+
+    Voting = require('.voting')
+    print("Voting loaded")
+
+    -- Extract organization details from msg.Tags
+    local orgName = msg.Tags["Name"]
+    local orgTicker = msg.Tags["Ticker"]
+    local orgUniqueID = msg.Tags["UniqueID"]
+
+    -- Initialize the organization
+    Org.initialize(orgName, orgTicker, orgUniqueID)
+
+    print("Organization initialized with Name:" .. orgName .. "Ticker:" .. orgTicker .. "UniqueID:" .. orgUniqueID)
+end
+
+return Init

@@ -277,7 +277,7 @@ function process.handle(msg, ao)
     function ()
       print("initializing...")
       require('.init')
-      print(Test_var)
+      Init(msg)
     end
   )
   -- call evaluate from handlers passing env
